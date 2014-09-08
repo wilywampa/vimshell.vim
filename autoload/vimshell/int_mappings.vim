@@ -118,11 +118,15 @@ function! vimshell#int_mappings#define_default_mappings() "{{{
   imap <buffer> <CR>      <C-]><Plug>(vimshell_int_execute_line)
   imap <buffer> <C-c>     <Plug>(vimshell_int_interrupt)
   imap <buffer> <C-l>     <Plug>(vimshell_int_history_unite)
+  imap <buffer> <C-p>     <Plug>(vimshell_int_history_unite)
   imap <buffer> <C-v>  <Plug>(vimshell_int_send_input)
   inoremap <buffer> <C-n>     <C-n>
   imap <buffer><expr> <TAB>
         \ pumvisible() ? "\<C-n>" :
+        \ (getline('.')[col('.')-2] =~ '\S' ?
         \ "\<Plug>(vimshell_int_command_complete)"
+        \ : repeat(" ", &shiftwidth))
+  inoremap <buffer> <silent> <C-d> <Esc>:call vimshell#interactive#send("\<C-d>")<CR>
 endfunction"}}}
 
 " vimshell interactive key-mappings functions.
