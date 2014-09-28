@@ -164,7 +164,7 @@ function! s:next_prompt() "{{{
   endif
 endfunction"}}}
 function! s:move_head() "{{{
-  call s:insert_head()
+  call vimshell#int_mappings#_insert_head()
 endfunction"}}}
 function! s:delete_backward_line() "{{{
   if !pumvisible()
@@ -182,6 +182,8 @@ function! s:delete_backward_line() "{{{
   return prefix . repeat("\<BS>", len)
 endfunction"}}}
 function! vimshell#int_mappings#execute_line(is_insert) "{{{
+  call vimshell#util#disable_auto_complete()
+
   if !has_key(b:interactive.prompt_history, line('.'))
     " Do update.
     call vimshell#interactive#execute_process_out(a:is_insert)
@@ -267,16 +269,14 @@ function! s:insert_enter() "{{{
       startinsert!
       return
     else
-      let pos = getpos('.')
-      let pos[2] = len(vimshell#interactive#get_prompt()) + 1
-      call setpos('.', pos)
+      call cursor(0, len(vimshell#interactive#get_prompt()) + 1)
     endif
   endif
 
   startinsert
 endfunction"}}}
-function! s:insert_head() "{{{
-  call cursor(1, 0)
+function! vimshell#int_mappings#_insert_head() "{{{
+  call cursor(0, 1)
   call s:insert_enter()
 endfunction"}}}
 function! s:append_enter() "{{{

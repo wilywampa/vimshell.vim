@@ -238,6 +238,8 @@ function! vimshell#mappings#execute_line(is_insert) "{{{
       call vimshell#int_mappings#_paste_prompt()
     endif
 
+    call vimshell#util#disable_auto_complete()
+
     call vimshell#interactive#execute_pty_inout(a:is_insert)
 
     try
@@ -429,6 +431,10 @@ function! s:insert_last_word() "{{{
   startinsert!
 endfunction"}}}
 function! vimshell#mappings#_paste_prompt() "{{{
+  if !empty(b:vimshell.continuation)
+    return vimshell#int_mappings#_paste_prompt()
+  endif
+
   let prompt_pattern = vimshell#get_context().prompt_pattern
   if getline('.') !~# prompt_pattern
     return
@@ -601,6 +607,10 @@ function! s:insert_enter() "{{{
   startinsert
 endfunction"}}}
 function! s:insert_head() "{{{
+  if !empty(b:vimshell.continuation)
+    return vimshell#int_mappings#_insert_head()
+  endif
+
   call cursor(0, 1)
   call s:insert_enter()
 endfunction"}}}
