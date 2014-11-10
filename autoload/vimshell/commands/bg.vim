@@ -76,9 +76,9 @@ function! s:command.execute(commands, context) "{{{
   " Set environment variables.
   let environments_save = vimshell#util#set_variables({
         \ '$TERM' : g:vimshell_environment_term,
-        \ '$TERMCAP' : 'COLUMNS=' . winwidth(0)-5,
+        \ '$TERMCAP' : 'COLUMNS=' . vimshell#helpers#get_winwidth(),
         \ '$VIMSHELL' : 1,
-        \ '$COLUMNS' : winwidth(0)-5,
+        \ '$COLUMNS' : vimshell#helpers#get_winwidth(),
         \ '$LINES' : g:vimshell_scrollback_limit,
         \ '$VIMSHELL_TERM' : 'background',
         \ '$EDITOR' : vimshell#helpers#get_editor_name(),
@@ -106,7 +106,7 @@ function! s:command.execute(commands, context) "{{{
         \ 'echoback_linenr' : 0,
         \ 'stdout_cache' : '',
         \ 'stderr_cache' : '',
-        \ 'width' : winwidth(0),
+        \ 'width' : vimshell#helpers#get_winwidth(),
         \ 'height' : g:vimshell_scrollback_limit,
         \ 'hook_functions_table' : {},
         \}
@@ -150,16 +150,7 @@ function! vimshell#commands#bg#init(commands, context, options, interactive) "{{
   let [new_pos[2], new_pos[3]] = [bufnr('%'), getpos('.')]
 
   " Common.
-  setlocal nolist
-  setlocal buftype=nofile
-  setlocal noswapfile
-  setlocal tabstop=8
-  setlocal foldcolumn=0
-  setlocal foldmethod=manual
-  if has('conceal')
-    setlocal conceallevel=3
-    setlocal concealcursor=n
-  endif
+  call vimshell#init#_default_settings()
 
   " For bg.
   setlocal nomodifiable

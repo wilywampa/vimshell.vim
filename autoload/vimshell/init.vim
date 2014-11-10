@@ -218,6 +218,28 @@ function! vimshell#init#_internal_commands(command) "{{{
   return get(internal_commands, a:command, {})
 endfunction"}}}
 
+function! vimshell#init#_default_settings() "{{{
+  " Common.
+  setlocal bufhidden=hide
+  setlocal buftype=nofile
+  setlocal nolist
+  setlocal noswapfile
+  setlocal tabstop=8
+  setlocal foldcolumn=0
+  setlocal foldmethod=manual
+  setlocal winfixheight
+  setlocal noreadonly
+  setlocal iskeyword+=-,+,\\,!,~
+  setlocal textwidth=0
+  if has('conceal')
+    setlocal conceallevel=3
+    setlocal concealcursor=nvi
+  endif
+  if exists('&colorcolumn')
+    setlocal colorcolumn=
+  endif
+endfunction"}}}
+
 function! vimshell#init#tab_variable() "{{{
   let t:vimshell = {
         \ 'last_vimshell_bufnr' : -1,
@@ -374,7 +396,7 @@ function! s:initialize_vimshell(path, context) "{{{
         \ 'echoback_linenr' : -1,
         \ 'stdout_cache' : '',
         \ 'stderr_cache' : '',
-        \ 'width' : winwidth(0),
+        \ 'width' : vimshell#helpers#get_winwidth(),
         \ 'height' : g:vimshell_scrollback_limit,
         \ 'hook_functions_table' : {},
         \}
@@ -397,23 +419,7 @@ endfunction"}}}
 
 function! s:default_settings() "{{{
   " Common.
-  setlocal bufhidden=hide
-  setlocal buftype=nofile
-  setlocal nolist
-  setlocal noswapfile
-  setlocal tabstop=8
-  setlocal foldcolumn=0
-  setlocal foldmethod=manual
-  setlocal winfixheight
-  setlocal noreadonly
-  setlocal iskeyword+=-,+,\\,!,~
-  if has('conceal')
-    setlocal conceallevel=3
-    setlocal concealcursor=nvi
-  endif
-  if exists('&colorcolumn')
-    setlocal colorcolumn=
-  endif
+  call vimshell#init#_default_settings()
 
   " Set autocommands.
   augroup vimshell
