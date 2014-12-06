@@ -38,6 +38,7 @@ function! vimshell#terminal#init() "{{{
         \ 'current_character_set' : 'United States',
         \ 'is_error' : 0,
         \ 'wrap' : &l:wrap,
+        \ 'buffer' : '',
         \}
 
   call vimshell#terminal#init_highlight()
@@ -92,7 +93,7 @@ function! vimshell#terminal#print(string, is_error) "{{{
         \ }
   let s:virtual.lines = {}
   let [s:virtual.line, s:virtual.col] =
-        \ s:get_virtual_col(line('.'), col('.')-1)
+        \ s:get_virtual_col(line('.'), col('.'))
   if g:vimshell_enable_debug
     echomsg '[s:virtual.line, s:virtual.col] = ' .
           \ string([s:virtual.line, s:virtual.col])
@@ -106,16 +107,68 @@ function! vimshell#terminal#print(string, is_error) "{{{
 
   let b:interactive.terminal.is_error = a:is_error
 
-  let newstr = ''
-  let pos = 0
+  let newstr = s:check_str(a:string)
 
+  " Print rest string.
+  call s:output_string(newstr)
+
+  " Set lines.
+  for linenr in sort(map(keys(s:virtual.lines),
+        \ 'str2nr(v:val)'), 's:sortfunc')
+    call setline(linenr, substitute(
+          \ s:virtual.lines[linenr], '[^!]\zs!\{6}\ze[^!]', '', 'g'))
+  endfor
+
+  call s:set_cursor()
+endfunction"}}}
+function! vimshell#terminal#set_title() "{{{
+  if !has_key(b:interactive, 'terminal')
+    call vimshell#terminal#init()
+  endif
+
+  let &titlestring = b:interactive.terminal.titlestring
+endfunction"}}}
+function! vimshell#terminal#restore_title() "{{{
+  if !has_key(b:interactive, 'terminal')
+    call vimshell#terminal#init()
+  endif
+
+  let &titlestring = b:interactive.terminal.titlestring_save
+endfunction"}}}
+function! vimshell#terminal#clear_highlight() "{{{
+  if !s:use_conceal()
+    return
+  endif
+
+  if !has_key(b:interactive, 'terminal')
+    call vimshell#terminal#init()
+  endif
+
+  for syntax_names in values(b:interactive.terminal.syntax_names)
+    execute 'highlight clear' syntax_names
+    execute 'syntax clear' syntax_names
+  endfor
+
+  let b:interactive.terminal.syntax_names = {}
+  let b:interactive.terminal.syntax_commands = {}
+  let b:interactive.terminal.syntax_highlights = {}
+
+  " Restore wrap.
+  let &l:wrap = b:interactive.terminal.wrap
+endfunction"}}}
+
+function! s:check_str(string) "{{{
   " Optimize checkstr.
-  let string = a:string
+  let string = b:interactive.terminal.buffer . a:string
+  let b:interactive.terminal.buffer = ''
   while string =~ '\%(\e\[[0-9;]*m\)\{2,}'
     let string = substitute(string,
           \ '\e\[[0-9;]*\zsm\e\[\ze[0-9;]*m', ';', 'g')
   endwhile
+
   let max = len(string)
+  let newstr = ''
+  let pos = 0
 
   while pos < max
     let char = string[pos]
@@ -209,6 +262,10 @@ function! vimshell#terminal#print(string, is_error) "{{{
 
       if matched
         continue
+      elseif checkstr !~ '\r\|\n'
+        " Incomplete sequence.
+        let b:interactive.terminal.buffer = string[pos :]
+        break
       endif"}}}
     elseif has_key(s:control_sequence, char) "{{{
       " Check other pattern.
@@ -226,54 +283,8 @@ function! vimshell#terminal#print(string, is_error) "{{{
     let pos += 1
   endwhile
 
-  " Print rest string.
-  call s:output_string(newstr)
-
-  " Set lines.
-  for linenr in sort(map(keys(s:virtual.lines),
-        \ 'str2nr(v:val)'), 's:sortfunc')
-    call setline(linenr, substitute(
-          \ s:virtual.lines[linenr], '[^!]\zs!\{6}\ze[^!]', '', 'g'))
-  endfor
-
-  call s:set_cursor()
-endfunction"}}}
-function! vimshell#terminal#set_title() "{{{
-  if !has_key(b:interactive, 'terminal')
-    call vimshell#terminal#init()
-  endif
-
-  let &titlestring = b:interactive.terminal.titlestring
-endfunction"}}}
-function! vimshell#terminal#restore_title() "{{{
-  if !has_key(b:interactive, 'terminal')
-    call vimshell#terminal#init()
-  endif
-
-  let &titlestring = b:interactive.terminal.titlestring_save
-endfunction"}}}
-function! vimshell#terminal#clear_highlight() "{{{
-  if !s:use_conceal()
-    return
-  endif
-
-  if !has_key(b:interactive, 'terminal')
-    call vimshell#terminal#init()
-  endif
-
-  for syntax_names in values(b:interactive.terminal.syntax_names)
-    execute 'highlight clear' syntax_names
-    execute 'syntax clear' syntax_names
-  endfor
-
-  let b:interactive.terminal.syntax_names = {}
-  let b:interactive.terminal.syntax_commands = {}
-  let b:interactive.terminal.syntax_highlights = {}
-
-  " Restore wrap.
-  let &l:wrap = b:interactive.terminal.wrap
-endfunction"}}}
-
+  return newstr
+endfunction "}}}
 function! s:optimized_print(string, is_error) "{{{
   " Strip <CR>.
   let string = substitute(substitute(
@@ -494,16 +505,11 @@ function! s:set_screen_string(line, col, string) "{{{
         \ (col > 1 ? current_line[:col-2] : '')
         \ . a:string
         \ . current_line[col+len :]
-  let len2 = s:get_virtual_wcswidth(a:string)
-  let s:virtual.col += len2
-  if col < 1
-    let s:virtual.col += 1
-  endif
 
-  " let [s:virtual.line, s:virtual.col] = s:get_virtual_col(line, col+len)
+  let [s:virtual.line, s:virtual.col] = s:get_virtual_col(line, col+len)
   if g:vimshell_enable_debug
-    echomsg 'current_line = ' . current_line
-    echomsg 'current_line[col:] = ' . current_line[col :]
+    echomsg 'current_line = ' . string(current_line)
+    echomsg 'current_line[col:] = ' . string(current_line[col :])
     echomsg '[old_virt_col, real_col, new_virt_col, string] = ' .
           \ string([a:col, col, s:virtual.col, a:string])
   endif
@@ -554,7 +560,7 @@ function! vimshell#terminal#get_col(line, col, is_virtual) "{{{
         let sequence = matchstr(current_line,
               \ '^\e\[[0-9;]*m', real_col)
         let skip_cnt = len(sequence)-1
-        let real_col += len(sequence)
+        let real_col += len(sequence)+1
       else
         let real_col += len(c)
         let col += vimshell#util#wcswidth(c)
@@ -565,16 +571,6 @@ function! vimshell#terminal#get_col(line, col, is_virtual) "{{{
         break
       endif
     endfor
-  endif
-
-  let check_col = a:is_virtual ? real_col : col
-  " current_line is too short.
-  if check_col < a:col
-    if a:is_virtual
-      let col += a:col - real_col
-    else
-      let real_col += a:col - col
-    endif
   endif
 
   return (a:is_virtual ? col : real_col)
@@ -1078,11 +1074,12 @@ let s:escape_sequence_match = {
       \ '^\[?\d\+[hl]' : s:escape.ignore,
       \ '^[()][AB012UK]' : s:escape.change_character_set,
       \ '^k.\{-}\e\\' : s:escape.change_title,
-      \ '^][02];.\{-}'."\<C-g>" : s:escape.change_title,
+      \ '^\][02];.\{-}'."\<C-g>" : s:escape.change_title,
       \ '^#\d' : s:escape.ignore,
       \ '^\dn' : s:escape.ignore,
       \ '^\[?1;\d\+0c' : s:escape.ignore,
       \ '^\d q' : s:escape.change_cursor_shape,
+      \ '^\]4;\d\+;rgb:\x\x/\x\x/\x\x\e\\' : s:escape.ignore,
       \}
 let s:escape_sequence_simple_char1 = {
       \ 'N' : s:escape.ignore,
