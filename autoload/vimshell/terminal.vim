@@ -199,6 +199,8 @@ function! s:check_str(string) "{{{
       " Check escape sequence.
       let checkstr = string[pos+1 :]
       if checkstr == ''
+        " Incomplete sequence.
+        let b:interactive.terminal.buffer = string[pos :]
         break
       endif
 
@@ -304,7 +306,7 @@ function! s:optimized_print(string, is_error) "{{{
 
   call cursor(0, col('$'))
   let [s:virtual.line, s:virtual.col] =
-        \ s:get_virtual_col(line('.'), col('.')-1)
+        \ s:get_virtual_col(line('.'), col('.'))
   call s:set_cursor()
 endfunction"}}}
 function! s:print_with_redraw(is_error, lines) "{{{
@@ -472,7 +474,8 @@ function! s:get_real_pos(line, col) "{{{
     return [a:line, 0]
   endif
 
-  return s:get_col_current_line(a:line, a:col, 0)
+  return [a:line, vimshell#terminal#get_col(
+        \ get(s:virtual.lines, a:line, getline(a:line)), -1, -1, a:col, 0)]
 endfunction"}}}
 function! s:get_virtual_col(line, col) "{{{
   let current_line = get(s:virtual.lines, a:line, getline(a:line))
@@ -480,33 +483,22 @@ function! s:get_virtual_col(line, col) "{{{
     return [a:line, 1]
   endif
 
-  return s:get_col_current_line(a:line, a:col, 1)
-endfunction"}}}
-function! s:get_col_current_line(line, col, is_virtual) "{{{
-  let current_line = get(s:virtual.lines, a:line, getline(a:line))
   return [a:line, vimshell#terminal#get_col(
-        \ current_line, a:col, a:is_virtual)]
-endfunction"}}}
-function! s:get_screen_character(line, col) "{{{
-  let [line, col] = s:get_real_pos(a:line, a:col)
-  return s:virtual.lines[line][col]
-endfunction"}}}
-function! s:get_virtual_wcswidth(string) "{{{
-  return vimshell#util#wcswidth(
-        \ substitute(a:string, '\e\[[0-9;]*m', '', 'g'))
+        \ get(s:virtual.lines, a:line, getline(a:line)), -1, -1, a:col, 1)]
 endfunction"}}}
 function! s:set_screen_string(line, col, string) "{{{
   let [line, col] = s:get_real_pos(a:line, a:col)
   call s:set_screen_pos(line, col)
 
-  let current_line = s:virtual.lines[line]
-  let len = vimshell#util#wcswidth(a:string)
+  let len = strwidth(a:string)
   let s:virtual.lines[line] =
-        \ (col > 1 ? current_line[:col-2] : '')
+        \ (col > 1 ? s:virtual.lines[line][: col-1] : '')
         \ . a:string
-        \ . current_line[col+len :]
+        \ . s:virtual.lines[line][col+len :]
+  let current_line = s:virtual.lines[line]
 
-  let [s:virtual.line, s:virtual.col] = s:get_virtual_col(line, col+len)
+  let s:virtual.col =
+        \ vimshell#terminal#get_col(current_line, s:virtual.col, col, col+len, 1)
   if g:vimshell_enable_debug
     echomsg 'current_line = ' . string(current_line)
     echomsg 'current_line[col:] = ' . string(current_line[col :])
@@ -527,22 +519,22 @@ function! s:set_screen_pos(line, col) "{{{
           \ repeat(' ', a:col - len(s:virtual.lines[a:line]))
   endif
 endfunction"}}}
-function! vimshell#terminal#get_col(line, col, is_virtual) "{{{
+function! vimshell#terminal#get_col(line, start_virtual, start_real, max_col, is_virtual) "{{{
   " is_virtual -> a:col : real col.
   " not -> a:col : virtual col.
-  let col = 1
-  let real_col = 0
+  let virtual_col = a:start_virtual < 0 ? 1 : a:start_virtual
+  let real_col = a:start_real < 0 ? 0 : a:start_virtual
 
   let current_line = a:line
 
   if current_line !~ '\e\[[0-9;]*m'
     " Optimized.
-    for c in split(current_line[: a:col*3], '\zs')
+    for c in split(current_line[: a:max_col*3], '\zs')
       let real_col += len(c)
-      let col += vimshell#util#wcswidth(c)
+      let virtual_col += strwidth(c)
 
-      let check_col = a:is_virtual ? real_col : col
-      if check_col > a:col
+      let check_col = a:is_virtual ? real_col : virtual_col
+      if check_col > a:max_col
         break
       endif
     endfor
@@ -560,20 +552,20 @@ function! vimshell#terminal#get_col(line, col, is_virtual) "{{{
         let sequence = matchstr(current_line,
               \ '^\e\[[0-9;]*m', real_col)
         let skip_cnt = len(sequence)-1
-        let real_col += len(sequence)+1
+        let real_col += len(sequence)
       else
         let real_col += len(c)
-        let col += vimshell#util#wcswidth(c)
+        let virtual_col += strwidth(c)
       endif
 
-      let check_col = a:is_virtual ? real_col : col
-      if check_col > a:col
+      let check_col = a:is_virtual ? real_col : virtual_col
+      if check_col > a:max_col
         break
       endif
     endfor
   endif
 
-  return (a:is_virtual ? col : real_col)
+  return (a:is_virtual ? virtual_col : real_col)
 endfunction"}}}
 
 " Escape sequence functions.
