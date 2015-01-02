@@ -89,7 +89,7 @@ function! vimshell#interactive#execute_pty_inout(is_insert) "{{{
   let in = vimshell#interactive#get_cur_line(line('.'))
   call vimshell#history#append(in)
   if in !~ "\<C-d>$"
-    let in .= "\<CR>"
+    let in .= vimshell#util#is_windows() ? "\<LF>" : "\<CR>"
   endif
 
   let b:interactive.prompt_nr = line('.')
@@ -222,6 +222,8 @@ function! vimshell#interactive#send(expr) "{{{
           \ string, "\<LF>", '; ', 'g'), '; $', '', '')
     call vimshell#view#_set_prompt_command(line)
 
+    let line = vimshell#hook#call_filter(
+          \ 'preparse', vimshell#get_context(), line)
     let ret = vimshell#execute_async(line)
 
     if ret == 0
