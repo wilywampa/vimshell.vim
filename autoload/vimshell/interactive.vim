@@ -34,8 +34,6 @@ augroup vimshell
         \ call s:check_all_output(0)
   autocmd CursorHold,CursorHoldI *
         \ call s:check_all_output(1)
-  autocmd CursorMovedI *
-        \ call vimshell#interactive#check_current_output()
   autocmd BufWinEnter,WinEnter *
         \ call s:winenter()
   autocmd BufWinLeave,WinLeave *
@@ -649,13 +647,6 @@ function! vimshell#interactive#get_default_encoding(commands) "{{{
 endfunction"}}}
 
 " Autocmd functions.
-function! vimshell#interactive#check_current_output() "{{{
-  if exists('b:interactive') &&
-        \ !empty(b:interactive.process) && b:interactive.process.is_valid
-    " Check output.
-    call s:check_output(b:interactive, bufnr('%'), bufnr('%'))
-  endif
-endfunction"}}}
 function! s:check_all_output(is_hold) "{{{
   if vimshell#util#is_cmdwin()
     return
@@ -664,7 +655,7 @@ function! s:check_all_output(is_hold) "{{{
   let updated = 0
 
   if mode() ==# 'n'
-    for bufnr in filter(range(1, bufnr('$')),
+    for bufnr in filter(map(range(1, winnr('$')), 'winbufnr(v:val)'),
         \ "type(getbufvar(v:val, 'interactive')) == type({})")
       let interactive = getbufvar(bufnr, 'interactive')
       let updated = 1
@@ -693,7 +684,7 @@ function! s:check_all_output(is_hold) "{{{
 
     " Ignore key sequences.
     if mode() ==# 'n'
-      call feedkeys("g\<ESC>", 'n')
+      call feedkeys("g\<ESC>" . (v:count > 0 ? v:count : ''), 'n')
     elseif mode() ==# 'i'
       if exists('b:interactive') &&
             \ !empty(b:interactive.process)
@@ -748,6 +739,8 @@ function! s:check_output(interactive, bufnr, bufnr_save) "{{{
     return
   endif
 
+  let pos = getpos('.')
+  let is_last_line = line('.') == line('$')
   if has_key(a:interactive, 'output_pos')
     call setpos('.', a:interactive.output_pos)
   endif
@@ -784,6 +777,11 @@ function! s:check_output(interactive, bufnr, bufnr_save) "{{{
           \ && is_insert
       call vimshell#view#_simple_insert(is_insert)
     endif
+  endif
+
+  if !is_last_line && pos != getpos('.')
+        \ && b:interactive.process.is_valid
+    call setpos('.', pos)
   endif
 
   " Check window size.
