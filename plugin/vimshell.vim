@@ -108,8 +108,6 @@ let g:vimshell_interactive_monochrome_commands =
       \ get(g:, 'vimshell_interactive_monochrome_commands', {})
 
 " For terminal commands.
-let g:vimshell_terminal_cursor =
-      \ get(g:, 'vimshell_terminal_cursor', 'i:block-Cursor/lCursor')
 let g:vimshell_terminal_commands =
       \ get(g:, 'vimshell_terminal_commands', {
       \     'more' : 1, 'screen' : 1, 'tmux' : 1,
@@ -132,7 +130,7 @@ command! -nargs=? -complete=customlist,vimshell#complete VimShellCreate
 command! -nargs=? -complete=customlist,vimshell#complete VimShellPop
       \ call s:call_vimshell({'toggle' : 1, 'popup' : 1}, <q-args>)
 command! -nargs=? -complete=customlist,vimshell#complete VimShellTab
-      \ tabnew | call s:call_vimshell({}, <q-args>)
+      \ tabnew | call s:call_vimshell({'tab' : 1}, <q-args>)
 command! -nargs=? -complete=customlist,vimshell#complete VimShellCurrentDir
       \ call s:call_vimshell({}, <q-args> . ' ' . getcwd())
 command! -nargs=? -complete=customlist,vimshell#complete VimShellBufferDir
@@ -144,8 +142,6 @@ command! -nargs=* -complete=customlist,vimshell#helpers#vimshell_execute_complet
       \ call s:vimshell_execute(<q-args>)
 command! -nargs=* -complete=customlist,vimshell#helpers#vimshell_execute_complete VimShellInteractive
       \ call s:vimshell_interactive(<q-args>)
-command! -nargs=+ -complete=customlist,vimshell#helpers#vimshell_execute_complete VimShellTerminal
-      \ call s:vimshell_terminal(<q-args>)
 
 command! -range -nargs=? VimShellSendString
       \ call vimshell#interactive#send_region(<line1>, <line2>, <q-args>)
@@ -219,26 +215,6 @@ function! s:vimshell_interactive(args) "{{{
     call vimshell#set_context(context)
 
     call vimshell#helpers#execute_internal_command('iexe', args, context)
-  catch
-    let message = (v:exception !~# '^Vim:')?
-          \ v:exception : v:exception . ' ' . v:throwpoint
-    call vimshell#error_line(
-          \ context.fd, printf('%s: %s', a:args, message))
-    return
-  endtry
-endfunction"}}}
-function! s:vimshell_terminal(args) "{{{
-  let context = {
-        \ 'has_head_spaces' : 0,
-        \ 'is_interactive' : 0,
-        \ 'is_single_command' : 1,
-        \ 'fd' : { 'stdin' : '', 'stdout': '', 'stderr': ''},
-        \}
-  call vimshell#set_context(context)
-
-  try
-    call vimshell#helpers#execute_internal_command('texe',
-          \ vimproc#parser#split_args(a:args), context)
   catch
     let message = (v:exception !~# '^Vim:')?
           \ v:exception : v:exception . ' ' . v:throwpoint

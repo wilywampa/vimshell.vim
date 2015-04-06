@@ -123,6 +123,7 @@ function! vimshell#init#_context(context) "{{{
     \ 'winwidth' : 0,
     \ 'winminwidth' : 0,
     \ 'project' : 0,
+    \ 'tab' : 0,
     \ 'direction' : '',
     \ 'prompt' : get(g:,
     \      'vimshell_prompt', 'vimshell% '),
@@ -425,10 +426,8 @@ function! s:default_settings() "{{{
   augroup vimshell
     autocmd BufDelete,VimLeavePre <buffer>
           \ call vimshell#interactive#hang_up(expand('<afile>'))
-    autocmd BufEnter,BufWinEnter,WinEnter <buffer>
+    autocmd BufEnter,BufWinEnter,WinEnter,BufRead <buffer>
           \ call vimshell#handlers#_on_bufwin_enter(expand('<abuf>'))
-    autocmd BufLeave,BufWinLeave,WinLeave <buffer>
-          \ call vimshell#handlers#_on_bufwin_leave()
   augroup end
 
   call vimshell#handlers#_on_bufwin_enter(bufnr('%'))
