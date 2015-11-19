@@ -171,15 +171,15 @@ function! vimshell#util#is_cmdwin() "{{{
 endfunction"}}}
 
 function! vimshell#util#is_auto_select() "{{{
-  return get(g:, 'neocomplcache_enable_auto_select', 0) ||
-        \ get(g:, 'neocomplete#enable_auto_select', 0)
+  return get(g:, 'neocomplcache_enable_auto_select', 0)
+        \ || get(g:, 'neocomplete#enable_auto_select', 0)
+        \ || &completeopt =~# 'noinsert'
 endfunction"}}}
 
 function! vimshell#util#is_complete_hold() "{{{
   return (get(g:, 'neocomplcache_enable_cursor_hold_i', 0)
         \ && !get(g:, 'neocomplcache_enable_insert_char_pre', 0)) ||
-        \ (get(g:, 'neocomplete#enable_cursor_hold_i', 0)
-        \ && !get(g:, 'neocomplete#enable_insert_char_pre', 0))
+        \ get(g:, 'neocomplete#enable_cursor_hold_i', 0)
 endfunction"}}}
 
 function! vimshell#util#is_auto_delimiter() "{{{
